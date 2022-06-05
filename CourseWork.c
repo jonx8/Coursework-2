@@ -1,16 +1,25 @@
+#define _DEFAULT_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <dirent.h>
 #include <ctype.h>
+#include <dirent.h>
 #define MAXLEN 256
 #define FIELDS_AMOUNT 6
 #define SEP ','
+
+/* Define clear screen function */
 #if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
 #define CLS system("clear")
 #else
 #define CLS system("cls")
+#endif
+
+/* Define checking for type of object in directory */
+#if defined(_DIRENT_HAVE_D_TYPE)
+#define ISFILE (ent->d_type == DT_REG)
+#else
+#define ISFILE (!opendir(ent->d_name))
 #endif
 
 /* Element of double-linked list of product types */
@@ -62,14 +71,12 @@ char *fields_names[] = {
     "Price",
     "Weight"};
 
-/*-----------------------*/
 /* --Service functions-- */
-/*-----------------------*/
 
 /* Get characters from stdin until get '\n' or EOF */
 void empty_stdin(void);
 
-/* Сompares real numbers with a precision of 3 decimal places */
+/* Ð¡ompares real numbers with a precision of 3 decimal places */
 int realcmp(double value1, double value2);
 
 /* Return True if a string is an integer, else False*/
@@ -81,9 +88,7 @@ int isReal(char *str);
 /* Return True if entered value is in correct form */
 int isCorrectValue(char *field_value, int field_num);
 
-/*-----------------------------------------------*/
 /* --Functions for work with list of the types-- */
-/*-----------------------------------------------*/
 
 /* Free pointer to a type structure */
 void clearType(typeL *pNode);
@@ -121,9 +126,7 @@ void insertType(typeHead *pHead, typeL *currentType, typeL *newType);
 /* Delete element of the list of types */
 void deleteType(typeHead *pHead, typeL *pNode);
 
-/*--------------------------------------------------*/
 /* --Functions for work with list of the products-- */
-/*--------------------------------------------------*/
 
 /* Free pointer to a product structure */
 void clearProduct(product *pNode);
@@ -185,12 +188,9 @@ void sortByNum(prodHead *pHead, int field_num, int direction);
 /* Decide which sort function to call */
 void sortProducts(prodHead *pHead, int field_num, int direction);
 
-/*----------------------------------------*/
 /* --Functions for the work with a file-- */
-/*----------------------------------------*/
 
 /* Free array of the strings */
-
 void clearStringArray(char **str, int n);
 
 /* Splitting string from a file */
@@ -205,9 +205,7 @@ void fileImport(prodHead *prodLHead, typeHead *typeLHead, char *filename);
 /* Save list of products in the file */
 void fileSave(prodHead *prodLHead, char *filename);
 
-/*---------------------------*/
 /* --Functions of the menus-- */
-/*---------------------------*/
 
 /* Submenu for select a field */
 int fieldSelection(void);
@@ -238,20 +236,23 @@ void sortMenu(prodHead *prodLHead, typeHead *typeLHead);
 
 int main(void)
 {
-
-    int output_mode;
-    int field_num; /* The number of the field that is being searched */
+    int output_mode; /* It equal 1, if print all products; It equal 2, if print only found products */
+    int field_num;   /* The number of the field that is being searched */
     char opt[5];
     char field_value[MAXLEN];
     char filename[MAXLEN];
     prodHead *prodLHead = NULL;
     typeHead *typeLHead = NULL;
 
-    output_mode = 1;
+    output_mode = 1; /* By default, printing all products in list */
     /* Create lists */
     prodLHead = createProdHead();
     typeLHead = createTypeHead();
+
+    CLS;
+    puts("Expand the console window for better data display. Press any key to continue...");
     getchar();
+
     /* Main menu */
     do
     {
@@ -273,10 +274,10 @@ int main(void)
         printf("1) Add new cards\n");
         printf("2) Edit cards\n");
         printf("3) Delete cards\n");
-        printf("4) Sort list of products\n");
-        printf("5) Print list of products\n");
-        printf("6) Search products by field value\n");
-        printf("7) Save table to file\n");
+        printf("4) Sort list of cards\n");
+        printf("5) Print list of cards\n");
+        printf("6) Search cards\n");
+        printf("7) Save data to file\n");
         printf("8) Exit\n");
         fgets(opt, 5, stdin);
 
@@ -331,6 +332,8 @@ int main(void)
     clearProductsList(prodLHead);
     free(typeLHead);
     free(prodLHead);
+    typeLHead = NULL;
+    prodLHead = NULL;
 
     CLS;
     return 0;
@@ -348,7 +351,7 @@ void empty_stdin(void)
 
 int realcmp(double value1, double value2)
 {
-    /* Сompares real numbers with a precision of 3 decimal places */
+    /* Ð¡ompares real numbers with a precision of 3 decimal places */
     int res;
     res = 0;
     res = (value1 * 1000 - value2 * 1000);
@@ -411,13 +414,13 @@ int isCorrectValue(char *field_value, int field_num)
     switch (field_num)
     {
     case 1:
-        if (strlen(field_value) < 20)
+        if (strlen(field_value) <= 20)
         {
             res = 1;
         }
         break;
     case 2:
-        if (strlen(field_value) < 20)
+        if (strlen(field_value) <= 20)
         {
             res = 1;
         }
@@ -435,11 +438,6 @@ int isCorrectValue(char *field_value, int field_num)
         }
         break;
     case 5:
-        if (isReal(field_value) && strlen(field_value) < 10)
-        {
-            res = 1;
-        }
-        break;
     case 6:
         if (isReal(field_value) && strlen(field_value) < 10)
         {
@@ -1276,10 +1274,10 @@ char *selectFile(void)
         while ((ent = readdir(dp)) != NULL)
         {
 
-            if (ent->d_namlen > 5)
+            if (ISFILE)
             {
                 /* Only files with the .csv extension are displayed */
-                len = ent->d_namlen;
+                len = strlen(ent->d_name);
                 if (ent->d_name[len - 4] == '.' && ent->d_name[len - 3] == 'c' && ent->d_name[len - 2] == 's' && ent->d_name[len - 1] == 'v')
                 {
                     file_num++;
@@ -1302,16 +1300,19 @@ char *selectFile(void)
                 while (sel_num > file_num && (ent = readdir(dp)) != NULL)
                 {
                     /* Search for the selected file */
-                    len = ent->d_namlen;
-                    if (ent->d_name[len - 4] == '.' && ent->d_name[len - 3] == 'c' && ent->d_name[len - 2] == 's' && ent->d_name[len - 1] == 'v')
+                    if (ISFILE)
                     {
-                        file_num++;
-                        if (file_num == sel_num)
+                        len = strlen(ent->d_name);
+                        if (ent->d_name[len - 4] == '.' && ent->d_name[len - 3] == 'c' && ent->d_name[len - 2] == 's' && ent->d_name[len - 1] == 'v')
                         {
-                            filename = (char *)malloc(sizeof(char) * (len + 1));
-                            if (filename)
+                            file_num++;
+                            if (file_num == sel_num)
                             {
-                                strcpy(filename, ent->d_name);
+                                filename = (char *)malloc(sizeof(char) * (len + 1));
+                                if (filename)
+                                {
+                                    strcpy(filename, ent->d_name);
+                                }
                             }
                         }
                     }
@@ -1320,16 +1321,17 @@ char *selectFile(void)
         }
         closedir(dp);
     }
-
     if (file_num == 0)
     {
         printf("There are not csv-files in the current directory!\n");
+        empty_stdin();
     }
     else if (filename == NULL)
     {
         printf("Such a file has not found!\n");
+        empty_stdin();
     }
-    empty_stdin();
+
     return filename;
 }
 
@@ -1338,15 +1340,12 @@ void fileImport(prodHead *prodLHead, typeHead *typeLHead, char *filename)
     /* Import products from a file */
     FILE *fs;
     int i, n, slen;
-    int error;
     char s1[MAXLEN];
     char **str_array = NULL;
     typeL *pType = NULL;
     product *pProd = NULL;
-
     if (prodLHead && prodLHead)
     {
-        error = 0;
         /* Reading file */
         if ((fs = fopen(filename, "r")) != NULL)
         {
@@ -1394,27 +1393,16 @@ void fileImport(prodHead *prodLHead, typeHead *typeLHead, char *filename)
                             insertProduct(prodLHead, prodLHead->last, pProd);
                         }
                     }
-                    else
-                    {
-                        error = 1;
-                    }
                 }
             }
             fclose(fs);
+            printf("Import was successful!\n");
+            empty_stdin();
         }
         else
         {
             printf("File not found\n");
         }
-        if (error)
-        {
-            printf("Reading error\n");
-        }
-        else
-        {
-            printf("Import succesful\n");
-        }
-        empty_stdin();
     }
     else
     {
@@ -1598,10 +1586,34 @@ void fieldValueInput(int field_num, char *field_value, typeHead *pHead)
 
 void printHelp(void)
 {
-    /* Print user help*/
+    /* Print user help */
+    CLS;
     printf("--Help--\n");
-    printf("\n");
-    getchar();
+    printf("This program is designed to work with an electronic card file of products.\n");
+    printf("Product data is displayed in a table.\n");
+    printf("Product field data must meet the following requirements:\n");
+    printf("\t* The name must be unique and no longer than 20 characters\n\n");
+    printf("\t* The type name must also be no longer than 20 characters.\n\n");
+    printf("\t* The index must be a six-digit integer\n\n");
+    printf("\t* The num must be an integer less than 100000\n\n");
+    printf("\t* Price and weight are real numbers with integer part no more than 10000,\n");
+    printf("\t  and fractional part no more than 3 decimal places.\n\n");
+    printf("After adding elements to the table, you interact with them:\n");
+    printf("\t* In the edit menu, you need to enter the id of the element whose field\n");
+    printf("\t  you want to edit. Then select a field and enter a new value.\n\n");
+    printf("\t* In the delete menu, you need to select a field and enter the value of\n");
+    printf("\t  this field. Then all products with this value of the selected field \n");
+    printf("\t  will be removed from the list.\n\n");
+    printf("\t* In the sorting menu, you need to select the field by whose value the\n");
+    printf("\t  elements will be sorted, and then select the type of ordering.\n\n");
+    printf("\t* In the search menu, you need to select a field and enter the value of\n");
+    printf("\t  this field. Then only elements with the same value of the selected\n");
+    printf("\t  field will be displayed in the table. To display all existing products \n");
+    printf("\t  again, select menu item No. 5 (Print list of cards).\n\n");
+    printf("\t* If you want to save a file with card index data, then select item No. 7\n");
+    printf("\t  in the menu and enter the name of the file in which the information\n");
+    printf("\t  will be recorded.\n");
+    empty_stdin();
 }
 
 void addMenu(prodHead *prodLHead, typeHead *typeLHead)
@@ -1628,7 +1640,7 @@ void addMenu(prodHead *prodLHead, typeHead *typeLHead)
                     if (filename)
                     {
                         fileImport(prodLHead, typeLHead, filename);
-                    }    
+                    }
                     break;
                 case '2':
                     manualCreateProduct(prodLHead, typeLHead);
@@ -1901,49 +1913,58 @@ void sortMenu(prodHead *prodLHead, typeHead *typeLHead)
 
     if (prodLHead && typeLHead)
     {
-        field_num = -1;
-        do
+        if (prodLHead->cnt > 0)
         {
-            /* Field selection */
-            field_num = fieldSelection();
-            if (field_num >= 0 && field_num < 7)
+            field_num = -1;
+            do
             {
-                /* If the field was selected then go to sub menu*/
-                do
+                /* Field selection */
+                field_num = fieldSelection();
+                if (field_num >= 0 && field_num < 7)
                 {
-                    CLS;
-                    printf("--Sorting list of products--\n");
-                    printf("Select the type of sorting:\n");
-                    printf("1) Ascending\n");
-                    printf("2) Descending\n");
-                    printf("3) Back\n");
-                    fgets(opt, 5, stdin);
-                    if (strlen(opt) == 2)
+                    /* If the field was selected then go to sub menu*/
+                    do
                     {
-                        switch (opt[0])
+                        CLS;
+                        printf("--Sorting list of products--\n");
+                        printf("Select the type of sorting:\n");
+                        printf("1) Ascending\n");
+                        printf("2) Descending\n");
+                        printf("3) Back\n");
+                        fgets(opt, 5, stdin);
+                        if (strlen(opt) == 2)
                         {
-                        case '1':
-                            sortProducts(prodLHead, field_num, ASCEND);
-                            field_num = 7;
-                            opt[0] = '3';
-                            break;
-                        case '2':
-                            sortProducts(prodLHead, field_num, DESCEND);
-                            field_num = 7;
-                            opt[0] = '3';
-                            break;
-                        case '3':
-                            break;
-                        default:
+                            switch (opt[0])
+                            {
+                            case '1':
+                                sortProducts(prodLHead, field_num, ASCEND);
+                                field_num = 7;
+                                opt[0] = '3';
+                                break;
+                            case '2':
+                                sortProducts(prodLHead, field_num, DESCEND);
+                                field_num = 7;
+                                opt[0] = '3';
+                                break;
+                            case '3':
+                                break;
+                            default:
+                                opt[0] = 0;
+                            };
+                        }
+                        else
+                        {
                             opt[0] = 0;
-                        };
-                    }
-                    else
-                    {
-                        opt[0] = 0;
-                    }
-                } while (opt[0] != '3');
-            }
-        } while (field_num != 7);
+                        }
+                    } while (opt[0] != '3');
+                }
+            } while (field_num != 7);
+        }
+        else
+        {
+            CLS;
+            printf("List of products is empty!\n");
+            empty_stdin();
+        }
     }
 }
