@@ -1267,13 +1267,13 @@ char *selectFile(void)
     struct dirent *ent = NULL;
 
     file_num = 0; /* Number of files */
+    sel_num = -1;
 
     CLS;
     if ((dp = opendir(".")) != NULL)
     {
         while ((ent = readdir(dp)) != NULL)
         {
-
             if (ISFILE)
             {
                 /* Only files with the .csv extension are displayed */
@@ -1319,14 +1319,15 @@ char *selectFile(void)
                 }
             }
         }
+        else
+        {
+            printf("There are not csv-files in the current directory!\n");
+            empty_stdin();
+        }
         closedir(dp);
     }
-    if (file_num == 0)
-    {
-        printf("There are not csv-files in the current directory!\n");
-        empty_stdin();
-    }
-    else if (filename == NULL)
+
+    if (filename == NULL && sel_num != -1)
     {
         printf("Such a file has not found!\n");
         empty_stdin();
